@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { io } from 'socket.io-client';
-import { Database, Activity, RefreshCw, Container, CheckCircle2, XCircle, AlertCircle, Sparkles, Search, Filter, Maximize2, Minimize2 } from 'lucide-react';
+import { Database, Activity, RefreshCw, Container, CheckCircle2, XCircle, AlertCircle, Sparkles, Search, Filter, Maximize2, Minimize2, GitBranch } from 'lucide-react';
 import './App.css';
 
 interface Service {
@@ -8,7 +8,7 @@ interface Service {
   name: string;
   image?: string;
   status: string;
-  type: 'docker' | 'database' | 'ai-model';
+  type: 'docker' | 'database' | 'ai-model' | 'git-repo';
 }
 
 const socket = io('http://localhost:3001');
@@ -18,7 +18,7 @@ function App() {
   const [services, setServices] = useState<Service[]>([]);
   const [connected, setConnected] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'docker' | 'database' | 'ai-model'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'docker' | 'database' | 'ai-model' | 'git-repo'>('all');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -73,17 +73,17 @@ function App() {
   }, [services, searchQuery, activeFilter]);
 
   const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'running':
-        return <CheckCircle2 className="status-icon running" size={20} />;
-      case 'loaded':
-        return <CheckCircle2 className="status-icon loaded" size={20} />;
-      case 'stopped':
-      case 'exited':
-        return <XCircle className="status-icon stopped" size={20} />;
-      default:
-        return <AlertCircle className="status-icon warning" size={20} />;
+    const s = status.toLowerCase();
+    if (s === 'running' || s === 'loaded' || s === 'clean') {
+      return <CheckCircle2 className="status-icon running" size={20} />;
     }
+    if (s === 'stopped' || s === 'exited') {
+      return <XCircle className="status-icon stopped" size={20} />;
+    }
+    if (s.includes('changes')) {
+      return <AlertCircle className="status-icon warning" size={20} />;
+    }
+    return <AlertCircle className="status-icon warning" size={20} />;
   };
 
   const getServiceIcon = (type: string) => {
@@ -91,6 +91,7 @@ function App() {
       case 'docker': return <Container size={24} />;
       case 'database': return <Database size={24} />;
       case 'ai-model': return <Sparkles size={24} className="ai-icon" />;
+      case 'git-repo': return <GitBranch size={24} className="git-icon" />;
       default: return <Activity size={24} />;
     }
   };
@@ -123,7 +124,7 @@ function App() {
               <Search size={18} className="search-icon" />
               <input 
                 type="text" 
-                placeholder="Search models, containers..." 
+                placeholder="Search projects, models, containers..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="search-input"
@@ -131,13 +132,13 @@ function App() {
             </div>
             
             <div className="filter-pills">
-              {(['all', 'docker', 'database', 'ai-model'] as const).map((f) => (
+              {(['all', 'docker', 'database', 'ai-model', 'git-repo'] as const).map((f) => (
                 <button
                   key={f}
                   onClick={() => setActiveFilter(f)}
                   className={`filter-pill ${activeFilter === f ? 'active' : ''}`}
                 >
-                  {f.replace('-', ' ')}
+                  {f === 'git-repo' ? 'projects' : f.replace('-', ' ')}
                 </button>
               ))}
             </div>
@@ -161,7 +162,7 @@ function App() {
         )}
         
         {filteredServices.map((service) => (
-          <div key={service.id + service.name} className={`service-card ${service.status} ${service.type}`}>
+          <div key={service.id + service.name} className={`service-card ${service.status.includes('changes') ? 'dirty' : service.status} ${service.type}`}>
             <div className="card-header">
               {getServiceIcon(service.type)}
               <span className="service-type">{service.type.replace('-', ' ')}</span>

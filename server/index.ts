@@ -7,6 +7,11 @@ import { Client as PGClient } from 'pg';
 import { createClient as createRedisClient } from 'redis';
 import { MongoClient } from 'mongodb';
 import fetch from 'node-fetch';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
+
+const execAsync = promisify(exec);
 
 const app = express();
 app.use(cors());
@@ -42,7 +47,6 @@ async function getOllamaModels() {
     if (!response.ok) return [];
     const data = await response.json() as { models: any[] };
     
-    // Also try to see what's currently running (ps)
     const psResponse = await fetch('http://localhost:11434/api/ps');
     const psData = psResponse.ok ? await psResponse.json() as { models: any[] } : { models: [] };
     const runningNames = new Set(psData.models.map(m => m.name));
@@ -56,6 +60,24 @@ async function getOllamaModels() {
     }));
   } catch (err) {
     return [];
+  }
+}
+
+async function getGitStatus(dirPath: string) {
+  try {
+    const { stdout: status } = await execAsync('git status --short', { cwd: dirPath });
+    const { stdout: branch } = await execAsync('git branch --show-current', { cwd: dirPath });
+    const changesCount = status.trim().split('\n').filter(line => line.length > 0).length;
+    
+    return {
+      id: `git-${path.basename(dirPath)}`,
+      name: path.basename(dirPath),
+      status: changesCount > 0 ? `${changesCount} changes` : 'clean',
+      image: branch.trim(),
+      type: 'git-repo'
+    };
+  } catch (err) {
+    return null;
   }
 }
 
@@ -89,8 +111,14 @@ const COMMON_DBS = [
   { name: 'MongoDB', type: 'mongodb' as const, port: 27017 }
 ];
 
+// Directories to monitor for git status
+const PROJECT_DIRS = [
+  process.cwd(), // The dashboard itself
+  path.join(process.cwd(), '..') // The parent playground directory
+];
+
 async function collectServiceStatus() {
-  const [dockerContainers, dbStatuses, aiModels] = await Promise.all([
+  const [dockerContainers, dbStatuses, aiModels, gitStatuses] = await Promise.all([
     getDockerContainers(),
     Promise.all(COMMON_DBS.map(async db => ({
       id: db.type,
@@ -98,20 +126,25 @@ async function collectServiceStatus() {
       status: await checkDatabase(db.type, db.port),
       type: 'database'
     }))),
-    getOllamaModels()
+    getOllamaModels(),
+    Promise.all(PROJECT_DIRS.map(dir => getGitStatus(dir)))
   ]);
 
-  return [...dockerContainers, ...dbStatuses, ...aiModels];
+  return [
+    ...dockerContainers, 
+    ...dbStatuses, 
+    ...aiModels, 
+    ...gitStatuses.filter((s): s is any => s !== null)
+  ];
 }
 
 io.on('connection', (socket) => {
-  // Initial check on connection
   collectServiceStatus().then(services => socket.emit('service-update', services));
 
   const interval = setInterval(async () => {
     const services = await collectServiceStatus();
     socket.emit('service-update', services);
-  }, 20000); // 20 seconds
+  }, 20000);
 
   socket.on('disconnect', () => clearInterval(interval));
 });

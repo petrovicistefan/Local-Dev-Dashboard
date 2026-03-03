@@ -8,13 +8,13 @@
   --warning: #f59e0b;
   --accent: #3b82f6;
   --ai-color: #a855f7;
+  --git-color: #f05032;
   --loaded: #3b82f6;
 }
 
 body {
   margin: 0;
   padding: 0;
- 
   color: var(--text-primary);
   font-family: 'Inter', -apple-system, sans-serif;
   overflow-x: hidden;
@@ -318,9 +318,18 @@ body::before {
   color: var(--ai-color);
 }
 
+.git-icon {
+  color: var(--git-color);
+}
+
 .service-card.ai-model.running {
   border-color: #a855f740;
   box-shadow: 0 0 15px -5px #a855f730;
+}
+
+.service-card.git-repo.dirty {
+  border-color: #f0503240;
+  box-shadow: 0 0 15px -5px #f0503230;
 }
 
 .empty-state {
