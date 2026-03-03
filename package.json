@@ -1,0 +1,27 @@
+{
+  "name": "local-dev-dashboard",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "concurrently \"npm run dev-server\" \"npm run dev-client\"",
+    "dev-server": "cd server && npx ts-node index.ts",
+    "dev-client": "cd client && npm run dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/petrovicistefan/Local-Dev-Dashboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/petrovicistefan/Local-Dev-Dashboard/issues"
+  },
+  "homepage": "https://github.com/petrovicistefan/Local-Dev-Dashboard#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
