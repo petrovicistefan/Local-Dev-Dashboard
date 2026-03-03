@@ -47,8 +47,6 @@ body {
 }
 
 body::before {
-...
-
   content: "";
   position: fixed;
   top: 0;
@@ -415,6 +413,45 @@ body::before {
   margin-top: 1.5rem;
   padding-top: 1rem;
   border-top: 1px solid #ffffff0d;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pipeline-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: #ffffff0d;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+}
+
+.pipeline-badge:hover {
+  background: #ffffff1a;
+  color: var(--text-primary);
+}
+
+.pipeline-badge.success { border-left: 2px solid var(--running); }
+.pipeline-badge.failure { border-left: 2px solid var(--stopped); }
+.pipeline-badge.in_progress { border-left: 2px solid var(--accent); }
+
+.pipeline-icon.success { color: var(--running); }
+.pipeline-icon.failure { color: var(--stopped); }
+
+.tv-mode .pipeline-badge span {
+  display: none;
+}
+
+.tv-mode .pipeline-badge {
+  padding: 0.2rem;
 }
 
 .tv-mode .card-footer {

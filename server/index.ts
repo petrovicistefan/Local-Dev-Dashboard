@@ -11,7 +11,9 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import si from 'systeminformation';
+import * as dotenv from 'dotenv';
 
+dotenv.config();
 const execAsync = promisify(exec);
 
 const app = express();
@@ -42,6 +44,39 @@ async function getSystemMetrics() {
     };
   } catch (err) {
     return { cpu: '0', mem: '0' };
+  }
+}
+
+async function getPipelineStatus(dirPath: string) {
+  try {
+    const { stdout: remoteUrl } = await execAsync('git remote get-url origin', { cwd: dirPath });
+    
+    if (remoteUrl.includes('github.com')) {
+      const match = remoteUrl.match(/github\.com[:/](.+?)\/(.+?)(\.git)?$/);
+      if (match) {
+        const owner = match[1];
+        const repo = match[2].replace('\n', '');
+        const headers: any = { 'Accept': 'application/vnd.github.v3+json' };
+        if (process.env.GITHUB_TOKEN) {
+          headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+        }
+
+        const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=1`, { headers });
+        if (response.ok) {
+          const data = await response.json() as any;
+          const lastRun = data.workflow_runs[0];
+          if (lastRun) {
+            return {
+              status: lastRun.status === 'completed' ? lastRun.conclusion : 'in_progress',
+              url: lastRun.html_url
+            };
+          }
+        }
+      }
+    }
+    return null;
+  } catch (err) {
+    return null;
   }
 }
 
@@ -88,12 +123,15 @@ async function getGitStatus(dirPath: string) {
     const { stdout: branch } = await execAsync('git branch --show-current', { cwd: dirPath });
     const changesCount = status.trim().split('\n').filter(line => line.length > 0).length;
     
+    const pipeline = await getPipelineStatus(dirPath);
+    
     return {
       id: `git-${path.basename(dirPath)}`,
       name: path.basename(dirPath),
       status: changesCount > 0 ? `${changesCount} changes` : 'clean',
       image: branch.trim(),
-      type: 'git-repo'
+      type: 'git-repo',
+      pipeline
     };
   } catch (err) {
     return null;
@@ -155,12 +193,10 @@ async function collectServiceStatus() {
     ...gitStatuses.filter((s): s is any => s !== null)
   ];
 
-  // Detect transitions for alerts
   const alerts: any[] = [];
   allServices.forEach(service => {
     const prevStatus = lastServiceStatuses[service.id];
     if (prevStatus && prevStatus !== service.status) {
-      // Alert if service was running/loaded and now it's stopped/exited
       const wasUp = ['running', 'loaded', 'clean'].includes(prevStatus);
       const isDown = ['stopped', 'exited'].includes(service.status);
       
@@ -179,13 +215,8 @@ async function collectServiceStatus() {
 }
 
 io.on('connection', (socket) => {
-  collectServiceStatus().then(data => {
-    socket.emit('service-update', data.services);
-  });
-  
-  getSystemMetrics().then(metrics => {
-    socket.emit('system-metrics', metrics);
-  });
+  collectServiceStatus().then(data => socket.emit('service-update', data.services));
+  getSystemMetrics().then(metrics => socket.emit('system-metrics', metrics));
 
   const interval = setInterval(async () => {
     const data = await collectServiceStatus();
@@ -200,22 +231,17 @@ io.on('connection', (socket) => {
     socket.emit('system-metrics', metrics);
   }, 5000);
 
-  // Handle service actions (Start, Stop, Restart)
   socket.on('service-action', async ({ id, action, type }) => {
-    console.log(`Action received: ${action} on ${id} (${type})`);
     try {
       if (type === 'docker') {
         const container = docker.getContainer(id);
         if (action === 'start') await container.start();
         if (action === 'stop') await container.stop();
         if (action === 'restart') await container.restart();
-        
-        // Immediate refresh after action
         const data = await collectServiceStatus();
         io.emit('service-update', data.services);
       }
     } catch (err: any) {
-      console.error(`Action failed: ${err.message}`);
       socket.emit('service-alert', [{
         title: 'Action Failed',
         message: `Could not ${action} ${id}: ${err.message}`,

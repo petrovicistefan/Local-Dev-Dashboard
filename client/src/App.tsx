@@ -9,6 +9,10 @@ interface Service {
   image?: string;
   status: string;
   type: 'docker' | 'database' | 'ai-model' | 'git-repo';
+  pipeline?: {
+    status: string;
+    url: string;
+  };
 }
 
 interface Alert {
@@ -136,7 +140,6 @@ function App() {
 
   const filteredServices = useMemo(() => {
     return services.filter(s => {
-      // First check settings visibility
       if (s.type === 'docker' && !settings.showDocker) return false;
       if (s.type === 'database' && !settings.showDatabases) return false;
       if (s.type === 'ai-model' && !settings.showAIModels) return false;
@@ -158,6 +161,15 @@ function App() {
       return <XCircle className="status-icon stopped" size={20} />;
     }
     return <AlertCircle className="status-icon warning" size={20} />;
+  };
+
+  const getPipelineIcon = (status: string) => {
+    switch (status) {
+      case 'success': return <CheckCircle2 size={14} className="pipeline-icon success" />;
+      case 'failure': return <XCircle size={14} className="pipeline-icon failure" />;
+      case 'in_progress': return <RefreshCw size={14} className="pipeline-icon spin" />;
+      default: return <Activity size={14} className="pipeline-icon" />;
+    }
   };
 
   const getServiceIcon = (type: string) => {
@@ -195,18 +207,10 @@ function App() {
           </div>
           
           <div className="header-actions">
-            <button 
-              onClick={() => setIsSettingsOpen(true)}
-              className="icon-button"
-              title="Settings"
-            >
+            <button onClick={() => setIsSettingsOpen(true)} className="icon-button" title="Settings">
               <Settings size={20} />
             </button>
-            <button 
-              onClick={toggleNotifications} 
-              className={`icon-button ${notificationsEnabled ? 'active' : ''}`}
-              title={notificationsEnabled ? "Disable Notifications" : "Enable Notifications"}
-            >
+            <button onClick={toggleNotifications} className={`icon-button ${notificationsEnabled ? 'active' : ''}`} title={notificationsEnabled ? "Disable Notifications" : "Enable Notifications"}>
               {notificationsEnabled ? <Bell size={20} className="bell-active" /> : <BellOff size={20} />}
             </button>
             <button onClick={toggleFullScreen} className="icon-button" title="TV Mode">
@@ -222,22 +226,12 @@ function App() {
           <div className="controls-row">
             <div className="search-container">
               <Search size={18} className="search-icon" />
-              <input 
-                type="text" 
-                placeholder="Search projects, models, containers..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="search-input"
-              />
+              <input type="text" placeholder="Search projects, models, containers..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="search-input" />
             </div>
             
             <div className="filter-pills">
               {(['all', 'docker', 'database', 'ai-model', 'git-repo'] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setActiveFilter(f)}
-                  className={`filter-pill ${activeFilter === f ? 'active' : ''}`}
-                >
+                <button key={f} onClick={() => setActiveFilter(f)} className={`filter-pill ${activeFilter === f ? 'active' : ''}`}>
                   {f === 'git-repo' ? 'projects' : f.replace('-', ' ')}
                 </button>
               ))}
@@ -272,30 +266,15 @@ function App() {
               {service.type === 'docker' && !isFullScreen && (
                 <div className="card-actions">
                   {service.status === 'running' ? (
-                    <button 
-                      onClick={() => handleAction(service.id, 'docker', 'stop')}
-                      disabled={loadingService === service.id}
-                      className="action-btn stop"
-                      title="Stop Container"
-                    >
+                    <button onClick={() => handleAction(service.id, 'docker', 'stop')} disabled={loadingService === service.id} className="action-btn stop" title="Stop Container">
                       <Square size={14} fill="currentColor" />
                     </button>
                   ) : (
-                    <button 
-                      onClick={() => handleAction(service.id, 'docker', 'start')}
-                      disabled={loadingService === service.id}
-                      className="action-btn start"
-                      title="Start Container"
-                    >
+                    <button onClick={() => handleAction(service.id, 'docker', 'start')} disabled={loadingService === service.id} className="action-btn start" title="Start Container">
                       <Play size={14} fill="currentColor" />
                     </button>
                   )}
-                  <button 
-                    onClick={() => handleAction(service.id, 'docker', 'restart')}
-                    disabled={loadingService === service.id}
-                    className="action-btn restart"
-                    title="Restart Container"
-                  >
+                  <button onClick={() => handleAction(service.id, 'docker', 'restart')} disabled={loadingService === service.id} className="action-btn restart" title="Restart Container">
                     <RotateCcw size={14} className={loadingService === service.id ? 'spin' : ''} />
                   </button>
                 </div>
@@ -312,6 +291,13 @@ function App() {
                 {getStatusIcon(service.status)}
                 <span className="status-text">{service.status}</span>
               </div>
+
+              {service.pipeline && (
+                <a href={service.pipeline.url} target="_blank" rel="noopener noreferrer" className={`pipeline-badge ${service.pipeline.status}`} title={`CI/CD Status: ${service.pipeline.status}`}>
+                  {getPipelineIcon(service.pipeline.status)}
+                  <span>Pipeline</span>
+                </a>
+              )}
             </div>
           </div>
         ))}
@@ -331,35 +317,19 @@ function App() {
                 <h3>Visibility</h3>
                 <label className="setting-item">
                   <span>Show Docker Containers</span>
-                  <input 
-                    type="checkbox" 
-                    checked={settings.showDocker} 
-                    onChange={e => setSettings({...settings, showDocker: e.target.checked})}
-                  />
+                  <input type="checkbox" checked={settings.showDocker} onChange={e => setSettings({...settings, showDocker: e.target.checked})} />
                 </label>
                 <label className="setting-item">
                   <span>Show Databases</span>
-                  <input 
-                    type="checkbox" 
-                    checked={settings.showDatabases} 
-                    onChange={e => setSettings({...settings, showDatabases: e.target.checked})}
-                  />
+                  <input type="checkbox" checked={settings.showDatabases} onChange={e => setSettings({...settings, showDatabases: e.target.checked})} />
                 </label>
                 <label className="setting-item">
                   <span>Show AI Models</span>
-                  <input 
-                    type="checkbox" 
-                    checked={settings.showAIModels} 
-                    onChange={e => setSettings({...settings, showAIModels: e.target.checked})}
-                  />
+                  <input type="checkbox" checked={settings.showAIModels} onChange={e => setSettings({...settings, showAIModels: e.target.checked})} />
                 </label>
                 <label className="setting-item">
                   <span>Show Git Projects</span>
-                  <input 
-                    type="checkbox" 
-                    checked={settings.showProjects} 
-                    onChange={e => setSettings({...settings, showProjects: e.target.checked})}
-                  />
+                  <input type="checkbox" checked={settings.showProjects} onChange={e => setSettings({...settings, showProjects: e.target.checked})} />
                 </label>
               </div>
             </div>
