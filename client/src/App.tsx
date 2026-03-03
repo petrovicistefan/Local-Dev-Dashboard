@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { io } from 'socket.io-client';
-import { Database, Activity, RefreshCw, Container, CheckCircle2, XCircle, AlertCircle, Sparkles, Search, Filter, Maximize2, Minimize2, GitBranch, Bell, BellOff, Play, Square, RotateCcw, Linkedin, Github, Coffee } from 'lucide-react';
+import { Database, Activity, RefreshCw, Container, CheckCircle2, XCircle, AlertCircle, Sparkles, Search, Filter, Maximize2, Minimize2, GitBranch, Bell, BellOff, Play, Square, RotateCcw, Linkedin, Github, Coffee, Settings, X } from 'lucide-react';
 import './App.css';
 
 interface Service {
@@ -17,6 +17,13 @@ interface Alert {
   type: 'error' | 'warning';
 }
 
+interface DashboardSettings {
+  showDocker: boolean;
+  showDatabases: boolean;
+  showAIModels: boolean;
+  showProjects: boolean;
+}
+
 const socket = io('http://localhost:3001');
 const REFRESH_INTERVAL = 20000;
 
@@ -29,6 +36,22 @@ function App() {
   const [progress, setProgress] = useState(0);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [loadingService, setLoadingService] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  const [settings, setSettings] = useState<DashboardSettings>(() => {
+    const saved = localStorage.getItem('dashboard-settings');
+    return saved ? JSON.parse(saved) : {
+      showDocker: true,
+      showDatabases: true,
+      showAIModels: true,
+      showProjects: true
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('dashboard-settings', JSON.stringify(settings));
+    socket.emit('update-settings', settings);
+  }, [settings]);
 
   useEffect(() => {
     socket.on('connect', () => setConnected(true));
@@ -102,12 +125,18 @@ function App() {
 
   const filteredServices = useMemo(() => {
     return services.filter(s => {
+      // First check settings visibility
+      if (s.type === 'docker' && !settings.showDocker) return false;
+      if (s.type === 'database' && !settings.showDatabases) return false;
+      if (s.type === 'ai-model' && !settings.showAIModels) return false;
+      if (s.type === 'git-repo' && !settings.showProjects) return false;
+
       const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                            (s.image && s.image.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesFilter = activeFilter === 'all' || s.type === activeFilter;
       return matchesSearch && matchesFilter;
     });
-  }, [services, searchQuery, activeFilter]);
+  }, [services, searchQuery, activeFilter, settings]);
 
   const getStatusIcon = (status: string) => {
     const s = status.toLowerCase();
@@ -143,6 +172,13 @@ function App() {
             <h1>Local Dev Dashboard</h1>
           </div>
           <div className="header-actions">
+            <button 
+              onClick={() => setIsSettingsOpen(true)}
+              className="icon-button"
+              title="Settings"
+            >
+              <Settings size={20} />
+            </button>
             <button 
               onClick={toggleNotifications} 
               className={`icon-button ${notificationsEnabled ? 'active' : ''}`}
@@ -198,7 +234,7 @@ function App() {
         {services.length > 0 && filteredServices.length === 0 && (
           <div className="empty-state">
             <Filter size={48} />
-            <p>No services match your filters</p>
+            <p>No services match your filters or settings</p>
           </div>
         )}
         
@@ -257,6 +293,56 @@ function App() {
           </div>
         ))}
       </main>
+
+      {isSettingsOpen && (
+        <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Dashboard Settings</h2>
+              <button className="close-button" onClick={() => setIsSettingsOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="settings-group">
+                <h3>Visibility</h3>
+                <label className="setting-item">
+                  <span>Show Docker Containers</span>
+                  <input 
+                    type="checkbox" 
+                    checked={settings.showDocker} 
+                    onChange={e => setSettings({...settings, showDocker: e.target.checked})}
+                  />
+                </label>
+                <label className="setting-item">
+                  <span>Show Databases</span>
+                  <input 
+                    type="checkbox" 
+                    checked={settings.showDatabases} 
+                    onChange={e => setSettings({...settings, showDatabases: e.target.checked})}
+                  />
+                </label>
+                <label className="setting-item">
+                  <span>Show AI Models</span>
+                  <input 
+                    type="checkbox" 
+                    checked={settings.showAIModels} 
+                    onChange={e => setSettings({...settings, showAIModels: e.target.checked})}
+                  />
+                </label>
+                <label className="setting-item">
+                  <span>Show Git Projects</span>
+                  <input 
+                    type="checkbox" 
+                    checked={settings.showProjects} 
+                    onChange={e => setSettings({...settings, showProjects: e.target.checked})}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isFullScreen && (
         <footer className="dashboard-footer">
