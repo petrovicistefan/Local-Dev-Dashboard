@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { io } from 'socket.io-client';
-import { Database, Activity, RefreshCw, Container, CheckCircle2, XCircle, AlertCircle, Sparkles, Search, Filter, Maximize2, Minimize2, GitBranch, Bell, BellOff, Play, Square, RotateCcw } from 'lucide-react';
+import { Database, Activity, RefreshCw, Container, CheckCircle2, XCircle, AlertCircle, Sparkles, Search, Filter, Maximize2, Minimize2, GitBranch, Bell, BellOff, Play, Square, RotateCcw, Linkedin, Github, Coffee } from 'lucide-react';
 import './App.css';
 
 interface Service {
@@ -35,12 +35,12 @@ function App() {
     socket.on('disconnect', () => setConnected(false));
     socket.on('service-update', (data: Service[]) => {
       setServices(data);
-      setLoadingService(null); // Clear loading on update
+      setLoadingService(null);
       setProgress(0);
     });
 
     socket.on('service-alert', (alerts: Alert[]) => {
-      setLoadingService(null); // Clear loading if action failed
+      setLoadingService(null);
       if (notificationsEnabled && Notification.permission === 'granted') {
         alerts.forEach(alert => {
           new Notification(alert.title, {
@@ -257,6 +257,26 @@ function App() {
           </div>
         ))}
       </main>
+
+      {!isFullScreen && (
+        <footer className="dashboard-footer">
+          <div className="footer-links">
+            <a href="https://www.linkedin.com/in/stefanpetrovici/" target="_blank" rel="noopener noreferrer" className="footer-link">
+              <Linkedin size={18} />
+              <span>Connect</span>
+            </a>
+            <a href="https://github.com/petrovicistefan" target="_blank" rel="noopener noreferrer" className="footer-link">
+              <Github size={18} />
+              <span>GitHub</span>
+            </a>
+            <a href="https://www.buymeacoffee.com/petrovicistefan" target="_blank" rel="noopener noreferrer" className="footer-link coffee">
+              <Coffee size={18} />
+              <span>Buy me a coffee</span>
+            </a>
+          </div>
+          <p className="footer-tagline">Open Source • MIT Licensed</p>
+        </footer>
+      )}
     </div>
   );
 }

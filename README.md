@@ -50,5 +50,22 @@ A professional-grade, lightweight monitoring station for local developers. Desig
 - **Custom Projects:** Add your own project directories in `server/index.ts` under the `PROJECT_DIRS` array.
 - **Background Image:** Add your own background by replacing `client/src/assets/background.png`.
 
+## 🤝 Contributing & Open Source
+
+This project is open-source under the **MIT License**. Contributions are welcome! Feel free to open issues or submit pull requests to help improve the dashboard for the developer community.
+
+## 👤 Connect with Me
+
+I'm always looking to expand my network and collaborate on interesting projects. Let's connect!
+
+- **LinkedIn:** [Stefan Petrovici](https://www.linkedin.com/in/stefanpetrovici/) <!-- Replace with your actual URL -->
+- **GitHub:** [@petrovicistefan](https://github.com/petrovicistefan)
+
+## ☕ Support the Project
+
+If this dashboard makes your development life a little easier, consider supporting its development:
+
+- **Buy Me a Coffee:** [Support here](https://www.buymeacoffee.com/petrovicistefan)
+
 ---
 *Created for developers who need a mission control for their local machine.*
