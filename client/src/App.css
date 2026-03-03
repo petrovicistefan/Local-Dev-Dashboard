@@ -15,6 +15,7 @@
 body {
   margin: 0;
   padding: 0;
+  background-color: var(--bg-color);
   color: var(--text-primary);
   font-family: 'Inter', -apple-system, sans-serif;
   overflow-x: hidden;
@@ -28,11 +29,11 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: url('assets/background.png');
+  background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  opacity: 0.05;
+  opacity: 0.15;
   z-index: -1;
   pointer-events: none;
   filter: grayscale(0.5);
@@ -114,6 +115,21 @@ body::before {
 .icon-button:hover {
   background: #ffffff0d;
   color: var(--text-primary);
+}
+
+.icon-button.active {
+  color: var(--accent);
+}
+
+.bell-active {
+  color: var(--warning);
+  animation: bell-pulse 2s infinite;
+}
+
+@keyframes bell-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .controls-row {
@@ -251,6 +267,51 @@ body::before {
 .tv-mode .card-header {
   margin-bottom: 0.5rem;
 }
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.service-card:hover .card-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  background: #ffffff0d;
+  border: none;
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: #ffffff1a;
+  color: var(--text-primary);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.start:hover { color: var(--running); }
+.action-btn.stop:hover { color: var(--stopped); }
+.action-btn.restart:hover { color: var(--accent); }
 
 .service-type {
   font-size: 0.7rem;

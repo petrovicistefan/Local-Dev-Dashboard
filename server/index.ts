@@ -26,6 +26,9 @@ const io = new Server(httpServer, {
 
 const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 
+// Global state to track transitions
+let lastServiceStatuses: Record<string, string> = {};
+
 async function getDockerContainers() {
   try {
     const containers = await docker.listContainers({ all: true });
@@ -111,10 +114,9 @@ const COMMON_DBS = [
   { name: 'MongoDB', type: 'mongodb' as const, port: 27017 }
 ];
 
-// Directories to monitor for git status
 const PROJECT_DIRS = [
-  process.cwd(), // The dashboard itself
-  path.join(process.cwd(), '..') // The parent playground directory
+  process.cwd(),
+  path.join(process.cwd(), '..')
 ];
 
 async function collectServiceStatus() {
@@ -130,21 +132,72 @@ async function collectServiceStatus() {
     Promise.all(PROJECT_DIRS.map(dir => getGitStatus(dir)))
   ]);
 
-  return [
+  const allServices = [
     ...dockerContainers, 
     ...dbStatuses, 
     ...aiModels, 
     ...gitStatuses.filter((s): s is any => s !== null)
   ];
+
+  // Detect transitions for alerts
+  const alerts: any[] = [];
+  allServices.forEach(service => {
+    const prevStatus = lastServiceStatuses[service.id];
+    if (prevStatus && prevStatus !== service.status) {
+      // Alert if service was running/loaded and now it's stopped/exited
+      const wasUp = ['running', 'loaded', 'clean'].includes(prevStatus);
+      const isDown = ['stopped', 'exited'].includes(service.status);
+      
+      if (wasUp && isDown) {
+        alerts.push({
+          title: 'Service Alert',
+          message: `${service.name} has gone down!`,
+          type: 'error'
+        });
+      }
+    }
+    lastServiceStatuses[service.id] = service.status;
+  });
+
+  return { services: allServices, alerts };
 }
 
 io.on('connection', (socket) => {
-  collectServiceStatus().then(services => socket.emit('service-update', services));
+  collectServiceStatus().then(data => {
+    socket.emit('service-update', data.services);
+  });
 
   const interval = setInterval(async () => {
-    const services = await collectServiceStatus();
-    socket.emit('service-update', services);
+    const data = await collectServiceStatus();
+    socket.emit('service-update', data.services);
+    if (data.alerts.length > 0) {
+      socket.emit('service-alert', data.alerts);
+    }
   }, 20000);
+
+  // Handle service actions (Start, Stop, Restart)
+  socket.on('service-action', async ({ id, action, type }) => {
+    console.log(`Action received: ${action} on ${id} (${type})`);
+    try {
+      if (type === 'docker') {
+        const container = docker.getContainer(id);
+        if (action === 'start') await container.start();
+        if (action === 'stop') await container.stop();
+        if (action === 'restart') await container.restart();
+        
+        // Immediate refresh after action
+        const data = await collectServiceStatus();
+        io.emit('service-update', data.services);
+      }
+    } catch (err: any) {
+      console.error(`Action failed: ${err.message}`);
+      socket.emit('service-alert', [{
+        title: 'Action Failed',
+        message: `Could not ${action} ${id}: ${err.message}`,
+        type: 'error'
+      }]);
+    }
+  });
 
   socket.on('disconnect', () => clearInterval(interval));
 });

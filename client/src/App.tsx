@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { io } from 'socket.io-client';
-import { Database, Activity, RefreshCw, Container, CheckCircle2, XCircle, AlertCircle, Sparkles, Search, Filter, Maximize2, Minimize2, GitBranch } from 'lucide-react';
+import { Database, Activity, RefreshCw, Container, CheckCircle2, XCircle, AlertCircle, Sparkles, Search, Filter, Maximize2, Minimize2, GitBranch, Bell, BellOff, Play, Square, RotateCcw } from 'lucide-react';
 import './App.css';
 
 interface Service {
@@ -9,6 +9,12 @@ interface Service {
   image?: string;
   status: string;
   type: 'docker' | 'database' | 'ai-model' | 'git-repo';
+}
+
+interface Alert {
+  title: string;
+  message: string;
+  type: 'error' | 'warning';
 }
 
 const socket = io('http://localhost:3001');
@@ -21,13 +27,28 @@ function App() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'docker' | 'database' | 'ai-model' | 'git-repo'>('all');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [loadingService, setLoadingService] = useState<string | null>(null);
 
   useEffect(() => {
     socket.on('connect', () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
     socket.on('service-update', (data: Service[]) => {
       setServices(data);
-      setProgress(0); // Reset progress on update
+      setLoadingService(null); // Clear loading on update
+      setProgress(0);
+    });
+
+    socket.on('service-alert', (alerts: Alert[]) => {
+      setLoadingService(null); // Clear loading if action failed
+      if (notificationsEnabled && Notification.permission === 'granted') {
+        alerts.forEach(alert => {
+          new Notification(alert.title, {
+            body: alert.message,
+            icon: '/vite.svg'
+          });
+        });
+      }
     });
 
     const handleFullScreenChange = () => {
@@ -35,8 +56,7 @@ function App() {
     };
     document.addEventListener('fullscreenchange', handleFullScreenChange);
 
-    // Progress bar animation logic
-    const tickRate = 100; // ms
+    const tickRate = 100;
     const timer = setInterval(() => {
       setProgress(prev => {
         if (prev >= 100) return 0;
@@ -48,10 +68,27 @@ function App() {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('service-update');
+      socket.off('service-alert');
       document.removeEventListener('fullscreenchange', handleFullScreenChange);
       clearInterval(timer);
     };
-  }, []);
+  }, [notificationsEnabled]);
+
+  const handleAction = (id: string, type: string, action: string) => {
+    setLoadingService(id);
+    socket.emit('service-action', { id, type, action });
+  };
+
+  const toggleNotifications = async () => {
+    if (!notificationsEnabled) {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        setNotificationsEnabled(true);
+      }
+    } else {
+      setNotificationsEnabled(false);
+    }
+  };
 
   const toggleFullScreen = () => {
     if (!document.fullscreenElement) {
@@ -80,9 +117,6 @@ function App() {
     if (s === 'stopped' || s === 'exited') {
       return <XCircle className="status-icon stopped" size={20} />;
     }
-    if (s.includes('changes')) {
-      return <AlertCircle className="status-icon warning" size={20} />;
-    }
     return <AlertCircle className="status-icon warning" size={20} />;
   };
 
@@ -109,6 +143,13 @@ function App() {
             <h1>Local Dev Dashboard</h1>
           </div>
           <div className="header-actions">
+            <button 
+              onClick={toggleNotifications} 
+              className={`icon-button ${notificationsEnabled ? 'active' : ''}`}
+              title={notificationsEnabled ? "Disable Notifications" : "Enable Notifications"}
+            >
+              {notificationsEnabled ? <Bell size={20} className="bell-active" /> : <BellOff size={20} />}
+            </button>
             <button onClick={toggleFullScreen} className="icon-button" title="TV Mode">
               {isFullScreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
             </button>
@@ -164,8 +205,42 @@ function App() {
         {filteredServices.map((service) => (
           <div key={service.id + service.name} className={`service-card ${service.status.includes('changes') ? 'dirty' : service.status} ${service.type}`}>
             <div className="card-header">
-              {getServiceIcon(service.type)}
-              <span className="service-type">{service.type.replace('-', ' ')}</span>
+              <div className="header-left">
+                {getServiceIcon(service.type)}
+                <span className="service-type">{service.type.replace('-', ' ')}</span>
+              </div>
+              
+              {service.type === 'docker' && !isFullScreen && (
+                <div className="card-actions">
+                  {service.status === 'running' ? (
+                    <button 
+                      onClick={() => handleAction(service.id, 'docker', 'stop')}
+                      disabled={loadingService === service.id}
+                      className="action-btn stop"
+                      title="Stop Container"
+                    >
+                      <Square size={14} fill="currentColor" />
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => handleAction(service.id, 'docker', 'start')}
+                      disabled={loadingService === service.id}
+                      className="action-btn start"
+                      title="Start Container"
+                    >
+                      <Play size={14} fill="currentColor" />
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => handleAction(service.id, 'docker', 'restart')}
+                    disabled={loadingService === service.id}
+                    className="action-btn restart"
+                    title="Restart Container"
+                  >
+                    <RotateCcw size={14} className={loadingService === service.id ? 'spin' : ''} />
+                  </button>
+                </div>
+              )}
             </div>
             
             <div className="card-body">
