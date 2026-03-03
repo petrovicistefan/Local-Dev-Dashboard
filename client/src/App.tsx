@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { io } from 'socket.io-client';
-import { Database, Activity, RefreshCw, Container, CheckCircle2, XCircle, AlertCircle, Sparkles, Search, Filter, Maximize2, Minimize2, GitBranch, Bell, BellOff, Play, Square, RotateCcw, Linkedin, Github, Coffee, Settings, X } from 'lucide-react';
+import { Database, Activity, RefreshCw, Container, CheckCircle2, XCircle, AlertCircle, Sparkles, Search, Filter, Maximize2, Minimize2, GitBranch, Bell, BellOff, Play, Square, RotateCcw, Linkedin, Github, Coffee, Settings, X, Cpu, HardDrive } from 'lucide-react';
 import './App.css';
 
 interface Service {
@@ -17,6 +17,11 @@ interface Alert {
   type: 'error' | 'warning';
 }
 
+interface SystemMetrics {
+  cpu: string;
+  mem: string;
+}
+
 interface DashboardSettings {
   showDocker: boolean;
   showDatabases: boolean;
@@ -30,6 +35,7 @@ const REFRESH_INTERVAL = 20000;
 function App() {
   const [services, setServices] = useState<Service[]>([]);
   const [connected, setConnected] = useState(false);
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics>({ cpu: '0', mem: '0' });
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'docker' | 'database' | 'ai-model' | 'git-repo'>('all');
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -62,6 +68,10 @@ function App() {
       setProgress(0);
     });
 
+    socket.on('system-metrics', (data: SystemMetrics) => {
+      setSystemMetrics(data);
+    });
+
     socket.on('service-alert', (alerts: Alert[]) => {
       setLoadingService(null);
       if (notificationsEnabled && Notification.permission === 'granted') {
@@ -91,6 +101,7 @@ function App() {
       socket.off('connect');
       socket.off('disconnect');
       socket.off('service-update');
+      socket.off('system-metrics');
       socket.off('service-alert');
       document.removeEventListener('fullscreenchange', handleFullScreenChange);
       clearInterval(timer);
@@ -170,7 +181,19 @@ function App() {
           <div className="header-content">
             <Activity className="logo-icon" />
             <h1>Local Dev Dashboard</h1>
+            
+            <div className="metrics-bar">
+              <div className="metric-item" title="Host CPU Load">
+                <Cpu size={16} />
+                <span>{systemMetrics.cpu}%</span>
+              </div>
+              <div className="metric-item" title="Host RAM Usage">
+                <HardDrive size={16} />
+                <span>{systemMetrics.mem}%</span>
+              </div>
+            </div>
           </div>
+          
           <div className="header-actions">
             <button 
               onClick={() => setIsSettingsOpen(true)}

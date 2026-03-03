@@ -10,6 +10,7 @@ import fetch from 'node-fetch';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import si from 'systeminformation';
 
 const execAsync = promisify(exec);
 
@@ -28,6 +29,21 @@ const docker = new Docker({ socketPath: '/var/run/docker.sock' });
 
 // Global state to track transitions
 let lastServiceStatuses: Record<string, string> = {};
+
+async function getSystemMetrics() {
+  try {
+    const [cpu, mem] = await Promise.all([
+      si.currentLoad(),
+      si.mem()
+    ]);
+    return {
+      cpu: cpu.currentLoad.toFixed(1),
+      mem: (100 - (mem.available / mem.total * 100)).toFixed(1)
+    };
+  } catch (err) {
+    return { cpu: '0', mem: '0' };
+  }
+}
 
 async function getDockerContainers() {
   try {
@@ -166,6 +182,10 @@ io.on('connection', (socket) => {
   collectServiceStatus().then(data => {
     socket.emit('service-update', data.services);
   });
+  
+  getSystemMetrics().then(metrics => {
+    socket.emit('system-metrics', metrics);
+  });
 
   const interval = setInterval(async () => {
     const data = await collectServiceStatus();
@@ -174,6 +194,11 @@ io.on('connection', (socket) => {
       socket.emit('service-alert', data.alerts);
     }
   }, 20000);
+
+  const metricsInterval = setInterval(async () => {
+    const metrics = await getSystemMetrics();
+    socket.emit('system-metrics', metrics);
+  }, 5000);
 
   // Handle service actions (Start, Stop, Restart)
   socket.on('service-action', async ({ id, action, type }) => {
@@ -199,7 +224,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => clearInterval(interval));
+  socket.on('disconnect', () => {
+    clearInterval(interval);
+    clearInterval(metricsInterval);
+  });
 });
 
 httpServer.listen(3001, () => {

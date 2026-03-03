@@ -11,7 +11,6 @@
   --git-color: #f05032;
   --loaded: #3b82f6;
 }
-
 body {
   margin: 0;
   padding: 0;
@@ -19,10 +18,37 @@ body {
   color: var(--text-primary);
   font-family: 'Inter', -apple-system, sans-serif;
   overflow-x: hidden;
+  overflow-y: auto;
   position: relative;
 }
 
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ffffff1a;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ffffff26;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff1a transparent;
+}
+
 body::before {
+...
+
   content: "";
   position: fixed;
   top: 0;
@@ -91,6 +117,50 @@ body::before {
   justify-content: space-between;
   align-items: center;
   width: 100%;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-content h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.metrics-bar {
+  display: flex;
+  gap: 1.5rem;
+  margin-left: 2rem;
+  padding-left: 2rem;
+  border-left: 1px solid #ffffff1a;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.metric-item span {
+  color: var(--text-primary);
+}
+
+.metric-item svg {
+  color: var(--accent);
+}
+
+.tv-mode .metrics-bar {
+  margin-left: 1rem;
+  padding-left: 1rem;
+  gap: 1rem;
 }
 
 .header-actions {
@@ -197,12 +267,6 @@ body::before {
 .filter-pill.active {
   background: var(--accent);
   color: white;
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
 }
 
 .logo-icon {
@@ -403,13 +467,13 @@ body::before {
   gap: 1rem;
 }
 .dashboard-footer {
-  margin-top: 4rem;
-  padding: 2rem 0;
+  margin-top: 2rem;
+  padding: 1rem 0;
   border-top: 1px solid #ffffff1a;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 /* Modal Styles */
@@ -511,7 +575,7 @@ body::before {
 
 .footer-links {
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -519,21 +583,21 @@ body::before {
 .footer-link {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   color: var(--text-secondary);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 500;
   transition: all 0.2s;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
   background: #ffffff05;
 }
 
 .footer-link:hover {
   color: var(--text-primary);
   background: #ffffff0d;
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .footer-link.coffee:hover {
@@ -542,9 +606,9 @@ body::before {
 }
 
 .footer-tagline {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: var(--text-secondary);
-  opacity: 0.6;
+  opacity: 0.5;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
